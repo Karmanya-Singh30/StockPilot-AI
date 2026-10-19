@@ -1,0 +1,26 @@
+product_id,product_name,category,current_stock,units_sold,sales_period_days,unit_cost,supplier_lead_time_days,safety_stock,target_coverage_days,minimum_order_quantity,supplier_name
+P001,Packaged Milk,Dairy,30,280,14,30.0,2,10,1.5,0,Supplier 1
+P002,Yogurt Cup,Dairy,0,76,14,244.15,1,19,1.5,0,Supplier 4
+P003,Butter,Dairy,110,0,14,40.75,6,14,1.5,0,Supplier 3
+P004,Cheddar Cheese,Dairy,250,71,14,164.53,7,13,1.5,0,Supplier 5
+P005,Bread Loaf,Packaged Foods,86,144,14,64.54,7,16,1.5,0,Supplier 5
+P006,Breakfast Cereal,Packaged Foods,18,260,14,161.6,6,8,1.5,0,Supplier 4
+P007,Instant Noodles,Packaged Foods,108,119,14,242.97,4,22,1.5,0,Supplier 4
+P008,Rice Bag,Packaged Foods,118,232,14,122.01,2,14,1.5,0,Supplier 1
+P009,Bottled Water,Beverages,86,63,14,173.93,7,19,1.5,0,Supplier 2
+P010,Orange Juice,Beverages,145,135,14,98.91,3,6,1.5,0,Supplier 3
+P011,Coffee Jar,Beverages,121,73,14,41.18,5,14,1.5,0,Supplier 2
+P012,Tea Pack,Beverages,41,178,14,114.92,5,8,1.5,0,Supplier 5
+P013,Shampoo,Personal Care,98,216,14,84.97,6,21,1.5,0,Supplier 3
+P014,Toothpaste,Personal Care,122,255,14,79.2,3,9,1.5,0,Supplier 4
+P015,Hand Wash,Personal Care,99,59,14,57.98,6,5,1.5,0,Supplier 4
+P016,Laundry Detergent,Household,120,238,14,179.24,5,10,1.5,0,Supplier 4
+P017,Dishwashing Liquid,Household,87,148,14,146.5,1,7,1.5,0,Supplier 2
+P018,Paper Towels,Household,26,143,14,123.06,5,22,1.5,0,Supplier 3
+P019,Cooking Oil,Packaged Foods,21,234,14,162.33,4,16,1.5,0,Supplier 1
+P020,Biscuits,Packaged Foods,88,242,14,17.4,3,11,1.5,0,Supplier 3
+P021,Energy Drink,Beverages,147,80,14,108.05,7,22,1.5,0,Supplier 1
+P022,Face Wash,Personal Care,42,250,14,77.53,1,23,1.5,0,Supplier 2
+P023,Floor Cleaner,Household,70,205,14,143.69,4,20,1.5,0,Supplier 5
+P024,Cheese Slices,Dairy,103,134,14,205.36,3,11,1.5,0,Supplier 1
+P025,Granola Bar,Packaged Foods,56,26,14,31.61,6,19,1.5,0,Supplier 4
