@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 from data.synthetic_data import generate_inventory
 from orchestration.workflow import StockPilotWorkflow
@@ -11,158 +10,29 @@ from utils.validation import validate_inventory
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────
+# Colors, fonts and radii live in .streamlit/config.toml ("Stockroom ledger").
 st.set_page_config(
-    page_title="StockPilot AI | Command Center",
-    page_icon="📦",
+    page_title="StockPilot AI",
+    page_icon=":material/inventory_2:",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
-BG = "#0B1120"
-PANEL = "#111B2E"
-BORDER = "#243249"
-MUTED = "#8FA2BB"
-TEXT = "#EDF4FF"
-GREEN = "#34D399"
-RED = "#FB7185"
-AMBER = "#FBBF24"
-BLUE = "#60A5FA"
-
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
-:root {
-    --background-color: #0B1120;
-    --secondary-background-color: #111B2E;
-    --text-color: #EDF4FF;
-    --primary-color: #34D399;
+RISK_ORDER = ["OUT OF STOCK", "CRITICAL", "HIGH", "MEDIUM", "LOW"]
+RISK_BADGE = {
+    "OUT OF STOCK": "red",
+    "CRITICAL": "red",
+    "HIGH": "orange",
+    "MEDIUM": "orange",
+    "LOW": "green",
 }
-.stApp {
-    background:
-      radial-gradient(ellipse at 80% 0%, rgba(16,185,129,.075), transparent 35%),
-      #0B1120;
-    font-family: 'DM Sans', sans-serif;
+# Plotly needs explicit hex values; these mirror redColor/orangeColor/greenColor in config.toml.
+RISK_COLORS = {
+    "light": {"OUT OF STOCK": "#7A1A12", "CRITICAL": "#B42318", "HIGH": "#B45309",
+              "MEDIUM": "#D9922E", "LOW": "#2F7D4F"},
+    "dark": {"OUT OF STOCK": "#C2412F", "CRITICAL": "#F0705F", "HIGH": "#E8954A",
+             "MEDIUM": "#F2C27B", "LOW": "#5BBF86"},
 }
-h1,h2,h3 {
-    font-family: 'Space Grotesk', sans-serif !important;
-    letter-spacing: -0.5px;
-}
-.block-container {
-    max-width: 1550px;
-    padding-top: 1.5rem;
-    padding-bottom: 3rem;
-}
-[data-testid="stSidebar"] {
-    background: #0D1627;
-    border-right: 1px solid #243249;
-}
-[data-testid="stSidebar"] > div:first-child { padding-top: 1.3rem; }
-[data-testid="stMetric"] {
-    background: linear-gradient(145deg, #142137, #101A2B);
-    border: 1px solid #243249;
-    padding: 17px 19px;
-    border-radius: 15px;
-    min-height: 125px;
-}
-[data-testid="stMetricLabel"] {
-    color: #8FA2BB !important;
-    font-size: 13px !important;
-}
-[data-testid="stMetricValue"] {
-    color: #EDF4FF !important;
-    font-family: 'Space Grotesk', sans-serif;
-}
-[data-testid="stMetricDelta"] { font-size: 12px; }
-.stButton > button, .stDownloadButton > button {
-    border-radius: 10px;
-    border: 1px solid #2D425C;
-    min-height: 42px;
-    font-weight: 600;
-    transition: all .18s ease;
-}
-.stButton > button[kind="primary"] {
-    background: #34D399;
-    border-color: #34D399;
-    color: #07131A;
-}
-.stButton > button:hover, .stDownloadButton > button:hover {
-    border-color: #34D399;
-    color: #34D399;
-}
-div[data-testid="stDataFrame"] {
-    border: 1px solid #243249;
-    border-radius: 12px;
-    overflow: hidden;
-}
-div[data-testid="stTabs"] button { font-weight: 600; }
-hr { border-color: #243249; }
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    border-color: #243249 !important;
-    border-radius: 14px !important;
-}
-div[data-testid="stAlert"] { border-radius: 12px; }
-small, .muted { color: #8FA2BB; }
-.hero {
-    background: linear-gradient(115deg, #14263A 0%, #102A2B 100%);
-    border: 1px solid #285044;
-    border-radius: 20px;
-    padding: 25px 28px;
-    margin-bottom: 22px;
-    position: relative;
-    overflow: hidden;
-}
-.hero:after {
-    content: '↗';
-    position: absolute;
-    right: 28px;
-    top: 12px;
-    font-size: 78px;
-    color: rgba(52,211,153,.13);
-    font-family: 'Space Grotesk', sans-serif;
-}
-.eyebrow {
-    color: #34D399;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 2px;
-    font-weight: 700;
-}
-.hero h1 {
-    margin: 8px 0 5px;
-    font-size: 33px;
-    color: #F1F7FF;
-}
-.hero p { color: #A9BDD2; margin-bottom: 0; font-size: 14px; }
-.section-head {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 19px;
-    font-weight: 600;
-    margin: 12px 0 4px;
-}
-.section-sub { color: #8FA2BB; font-size: 12px; margin-bottom: 13px; }
-.pill {
-    display: inline-block;
-    border: 1px solid #285044;
-    background: rgba(52,211,153,.09);
-    color: #34D399;
-    padding: 5px 10px;
-    border-radius: 100px;
-    font-size: 11px;
-    font-weight: 700;
-}
-.info-card {
-    background: #111B2E;
-    border: 1px solid #243249;
-    border-radius: 14px;
-    padding: 17px;
-}
-.info-label { color: #8FA2BB; font-size: 12px; margin-bottom: 7px; }
-.info-value { font-size: 22px; font-weight: 700; color: #EDF4FF; }
-.info-note { font-size: 11px; color: #8FA2BB; margin-top: 5px; }
-footer { visibility: hidden; }
-</style>
-""", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -191,32 +61,35 @@ def find_column(df, *candidates):
 def style_chart(fig, height=300):
     fig.update_layout(
         height=height,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans", color=TEXT, size=12),
-        margin=dict(l=10, r=10, t=35, b=10),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            font=dict(color=MUTED),
-        ),
-        xaxis=dict(
-            gridcolor=BORDER,
-            zerolinecolor=BORDER,
-            linecolor=BORDER,
-        ),
-        yaxis=dict(
-            gridcolor=BORDER,
-            zerolinecolor=BORDER,
-            linecolor=BORDER,
-        ),
+        margin=dict(l=10, r=10, t=10, b=10),
     )
     return fig
 
 
 def heading(title, subtitle=None):
-    st.markdown(f'<div class="section-head">{title}</div>', unsafe_allow_html=True)
+    st.subheader(title)
     if subtitle:
-        st.markdown(f'<div class="section-sub">{subtitle}</div>', unsafe_allow_html=True)
+        st.caption(subtitle)
+
+
+def by_severity(df, column):
+    rank = df[column].astype(str).str.upper().map({r: i for i, r in enumerate(RISK_ORDER)})
+    return df.assign(_rank=rank.fillna(len(RISK_ORDER))).sort_values("_rank").drop(columns="_rank")
+
+
+def run_workflow():
+    try:
+        with st.spinner("Agents are analyzing stock, planning orders and validating the plan..."):
+            st.session_state.workflow_result = StockPilotWorkflow().run(
+                st.session_state.inventory.copy(), st.session_state.budget
+            )
+    except Exception as exc:
+        st.session_state.workflow_result = None
+        st.session_state.workflow_error = f"{type(exc).__name__}: {exc}"
+
+
+def csv_bytes(df):
+    return df.to_csv(index=False).encode("utf-8")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -236,38 +109,16 @@ if "inventory_source" not in st.session_state:
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown(
-        f"""
-        <div style="padding:5px 0 23px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="background:#163D35;border:1px solid #285044;
-                        border-radius:12px;padding:10px;font-size:22px;">📦</div>
-            <div>
-              <div style="font-family:Space Grotesk;font-weight:700;
-                          font-size:20px;color:#EDF4FF;">StockPilot<span style="color:#34D399"> AI</span></div>
-              <div style="font-size:10px;letter-spacing:1.4px;color:#8FA2BB;">INVENTORY INTELLIGENCE</div>
-            </div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("### :material/inventory_2: StockPilot AI")
+    st.caption("Agentic inventory planning for retail stockrooms.")
 
-    st.markdown("##### WORKSPACE")
-    page = st.radio(
-        "Navigation",
-        ["Command Center", "Inventory Explorer", "Replenishment", "Agent Activity"],
-        label_visibility="collapsed",
-    )
-
-    st.divider()
-    st.markdown("##### PLANNING CONTROLS")
-
-    budget = st.number_input(
+    st.subheader("Planning controls")
+    st.number_input(
         "Purchase budget (₹)",
         min_value=0.0,
         value=10000.0,
         step=500.0,
+        key="budget",
         help="Maximum total proposed purchase cost.",
     )
 
@@ -282,9 +133,7 @@ with st.sidebar:
             imported = pd.read_csv(uploaded_file)
             errors = validate_inventory(imported)
             if errors:
-                st.error("CSV validation failed")
-                for error in errors:
-                    st.caption(f"• {error}")
+                st.error("\n".join(f"- {error}" for error in errors), title="CSV validation failed")
             else:
                 signature = (
                     uploaded_file.name,
@@ -300,9 +149,9 @@ with st.sidebar:
         except Exception as exc:
             st.error(f"Could not import CSV: {exc}")
 
-    st.caption(f"Data source: {st.session_state.inventory_source}")
+    st.caption(f"Data source: `{st.session_state.inventory_source}`")
 
-    if st.button("↻ Reset demo data", use_container_width=True):
+    if st.button("Reset demo data", icon=":material/restart_alt:", width="stretch"):
         st.session_state.inventory = generate_inventory()
         st.session_state.workflow_result = None
         st.session_state.inventory_source = "Built-in demo dataset"
@@ -310,16 +159,13 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.markdown(
-        f"""
-        <div style="font-size:11px;color:#8FA2BB;line-height:1.8;">
-        <span style="color:#34D399">●</span> Local application<br>
-        <span style="color:#34D399">●</span> Synthetic-data ready<br>
-        <span style="color:#FBBF24">●</span> Human approval required
-        </div>
-        """,
-        unsafe_allow_html=True,
+    st.caption(
+        ":material/lock: Runs locally  \n"
+        ":material/science: Works with synthetic data  \n"
+        ":material/how_to_reg: Every order needs human approval"
     )
+
+budget = st.session_state.budget
 
 
 # ─────────────────────────────────────────────────────────────
@@ -349,13 +195,6 @@ analysis_df = analysis.copy() if isinstance(analysis, pd.DataFrame) else pd.Data
 plan_df = purchase_plan.copy() if isinstance(purchase_plan, pd.DataFrame) else pd.DataFrame()
 
 risk_col = find_column(analysis_df, "risk_level", "risk", "stock_status")
-if risk_col:
-    risk_series = analysis_df[risk_col].astype(str).str.upper()
-else:
-    risk_series = pd.Series(dtype=str)
-
-critical_count = int(risk_series.str.contains("CRITICAL|HIGH|OUT|URGENT", regex=True).sum()) if len(risk_series) else 0
-low_count = int(risk_series.str.contains("LOW|MEDIUM|REORDER|WARNING", regex=True).sum()) if len(risk_series) else 0
 
 approved_cost = validation.get("total_approved_cost", 0)
 try:
@@ -368,162 +207,152 @@ if not approved_cost_value and not plan_df.empty:
     if approved_cost_col:
         approved_cost_value = float(numeric(plan_df, approved_cost_col).sum())
 
-# ─────────────────────────────────────────────────────────────
-# HERO HEADER
-# ─────────────────────────────────────────────────────────────
-status_color = GREEN if workflow_status == "VALIDATED" else AMBER if workflow_status == "NOT RUN" else RED
-status_label = "READY TO ANALYZE" if workflow_status == "NOT RUN" else workflow_status
+chart_mode = "dark" if st.context.theme.type == "dark" else "light"
 
-st.markdown(
-    f"""
-    <div class="hero">
-      <div class="eyebrow">RETAIL OPERATIONS / COMMAND CENTER</div>
-      <h1>Inventory intelligence, at a glance.</h1>
-      <p>Monitor stock health, evaluate demand signals and build budget-aware replenishment plans.</p>
-      <div style="margin-top:17px;">
-        <span class="pill">● {status_label}</span>
-        <span style="font-size:11px;color:#8FA2BB;margin-left:10px;">{product_count} products · {category_count} categories · Budget {money(budget)}</span>
-      </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+
+# ─────────────────────────────────────────────────────────────
+# HEADER: stock tags + run action, shared by every page
+# ─────────────────────────────────────────────────────────────
+def header(title, subtitle):
+    with st.container(horizontal=True, vertical_alignment="bottom"):
+        with st.container():
+            st.title(title)
+            st.caption(subtitle)
+        st.button(
+            "Run agents" if not result else "Re-run agents",
+            icon=":material/play_arrow:",
+            type="primary",
+            on_click=run_workflow,
+        )
+
+    if error := st.session_state.pop("workflow_error", None):
+        st.error(error, title="Workflow could not run")
+
+    if risk_col:
+        counts = analysis_df[risk_col].astype(str).str.upper().value_counts()
+        tags = [
+            f":{RISK_BADGE.get(level, 'gray')}-badge[{level} · {counts[level]}]"
+            for level in RISK_ORDER if level in counts
+        ]
+        status_badge = ":green-badge[:material/check: Plan validated]" if workflow_status == "VALIDATED" \
+            else f":red-badge[:material/close: Plan {workflow_status.lower()}]"
+        st.markdown(" ".join([status_badge, *tags]))
+    else:
+        status_badge = ":gray-badge[Not analyzed yet]" if workflow_status == "NOT RUN" \
+            else f":red-badge[:material/close: {workflow_status}]"
+        st.markdown(
+            f"{status_badge} `{product_count}` products · `{category_count}` categories · "
+            f"budget `{money(budget)}`"
+        )
+
 
 # ─────────────────────────────────────────────────────────────
 # PAGE: COMMAND CENTER
 # ─────────────────────────────────────────────────────────────
-if page == "Command Center":
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Products tracked", f"{product_count:,}", f"{category_count} categories")
-    k2.metric("Units on hand", f"{total_units:,.0f}", "Across all listed products")
-    k3.metric("Inventory value", money(stock_value), "Stock × unit cost")
-    k4.metric(
-        "Purchase budget",
-        money(budget),
-        f"{(approved_cost_value / budget * 100):.1f}% proposed"
-        if budget > 0 and result else "Run analysis to allocate",
-    )
+def command_center():
+    header("Command center", "Stock health, demand signals and budget-aware replenishment in one view.")
 
-    st.markdown("")
+    with st.container(horizontal=True):
+        st.metric("Products tracked", f"{product_count:,}", border=True,
+                  help=f"{category_count} categories")
+        st.metric("Units on hand", f"{total_units:,.0f}", border=True,
+                  help="Across all listed products")
+        st.metric("Inventory value", money(stock_value), border=True, help="Stock × unit cost")
+        st.metric(
+            "Budget proposed",
+            f"{approved_cost_value / budget * 100:.1f}%" if budget > 0 and result else "—",
+            border=True,
+            help=f"Share of the {money(budget)} budget allocated by the Replenishment Agent",
+        )
+
     left, right = st.columns([1.2, 1])
 
     with left:
-        heading("Stock health", "Risk classifications returned by the Inventory Analyst")
+        heading("Stock health", "Products per risk level, most urgent first.")
         if not analysis_df.empty and risk_col:
             risk_counts = (
-                analysis_df[risk_col].astype(str)
+                analysis_df[risk_col].astype(str).str.upper()
                 .value_counts()
+                .reindex(RISK_ORDER).dropna()
                 .rename_axis("Risk level")
                 .reset_index(name="Products")
             )
-            fig = px.pie(
+            fig = px.bar(
                 risk_counts,
-                names="Risk level",
-                values="Products",
-                hole=0.68,
-                color_discrete_sequence=[GREEN, BLUE, AMBER, RED, "#A78BFA"],
+                x="Products",
+                y="Risk level",
+                orientation="h",
+                text="Products",
+                color="Risk level",
+                color_discrete_map=RISK_COLORS[chart_mode],
             )
-            fig.update_traces(
-                textposition="inside",
-                textinfo="label+value",
-                marker=dict(line=dict(color=BG, width=3)),
-            )
-            fig.update_layout(showlegend=False, annotations=[
-                dict(
-                    text=f"<b>{len(analysis_df)}</b><br><span style='font-size:11px'>analyzed</span>",
-                    x=0.5, y=0.5, font=dict(size=21, color=TEXT),
-                    showarrow=False,
-                )
-            ])
-            st.plotly_chart(style_chart(fig, 310), use_container_width=True)
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.update_layout(showlegend=False, xaxis_title="", yaxis_title="",
+                              yaxis=dict(categoryorder="array", categoryarray=RISK_ORDER[::-1]))
+            st.plotly_chart(style_chart(fig, 300), alt="Bar chart of products per risk level")
         else:
-            st.info("Run the agents to populate the stock-health chart.")
+            st.info("Run the agents to classify every product by stock risk.",
+                    icon=":material/play_arrow:")
 
     with right:
-        heading("Inventory by category", "Current units on hand")
+        heading("Units by category", "Current units on hand.")
         if category_col:
-            category_data = inventory.copy()
-            category_data["_stock"] = stock
             category_summary = (
-                category_data.groupby(category_col, dropna=False)["_stock"]
+                inventory.assign(Units=stock)
+                .groupby(category_col, dropna=False)["Units"]
                 .sum().reset_index()
-                .sort_values("_stock", ascending=True)
+                .sort_values("Units", ascending=True)
             )
-            fig = px.bar(
-                category_summary,
-                x="_stock",
-                y=category_col,
-                orientation="h",
-                text="_stock",
-                color_discrete_sequence=[GREEN],
-            )
-            fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside")
-            fig.update_layout(
-                showlegend=False,
-                xaxis_title="Units",
-                yaxis_title="",
-                uniformtext_minsize=10,
-                uniformtext_mode="hide",
-            )
-            st.plotly_chart(style_chart(fig, 310), use_container_width=True)
+            fig = px.bar(category_summary, x="Units", y=category_col, orientation="h", text="Units")
+            fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside", cliponaxis=False)
+            fig.update_layout(showlegend=False, xaxis_title="", yaxis_title="")
+            st.plotly_chart(style_chart(fig, 300), alt="Bar chart of units on hand per category")
         else:
             st.info("No category column found in the inventory.")
 
-    heading("Priority watchlist", "Products that may need attention")
-    if not analysis_df.empty:
-        display_df = analysis_df.copy()
-        if risk_col:
-            display_df["_risk_sort"] = display_df[risk_col].astype(str).str.upper()
-            display_df = display_df.sort_values("_risk_sort")
-            display_df = display_df.drop(columns=["_risk_sort"])
-        st.dataframe(display_df.head(8), use_container_width=True, hide_index=True)
-    else:
-        st.markdown(
-            f"""
-            <div class="info-card">
-              <div class="info-label">NEXT ACTION</div>
-              <div class="info-value">Run your inventory agents</div>
-              <div class="info-note">The system will calculate demand, stock cover, replenishment needs and independent validation.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    heading("Priority watchlist", "Products below the low-risk threshold, most urgent first.")
+    if not analysis_df.empty and risk_col:
+        watch = by_severity(analysis_df, risk_col)
+        watch = watch[watch[risk_col].astype(str).str.upper() != "LOW"]
+        cols = [c for c in ["product_id", name_col, category_col, stock_col, "days_remaining",
+                            "reorder_point", risk_col, "risk_explanation"] if c and c in watch.columns]
+        st.dataframe(
+            watch[cols],
+            hide_index=True,
+            column_config={
+                "product_id": st.column_config.TextColumn("SKU"),
+                "product_name": "Product",
+                "category": "Category",
+                "current_stock": st.column_config.NumberColumn("On hand", format="%d"),
+                "days_remaining": st.column_config.NumberColumn("Days of cover", format="%.1f"),
+                "reorder_point": st.column_config.NumberColumn("Reorder point", format="%.0f"),
+                "risk_level": "Risk",
+                "risk_explanation": st.column_config.TextColumn("Why", width="large"),
+            },
+            alt="Products needing attention, sorted by risk",
         )
-
-    st.markdown("")
-    col_run, col_status = st.columns([1, 2])
-    with col_run:
-        if st.button("▶ Run inventory analysis", type="primary", use_container_width=True):
-            try:
-                with st.spinner("Agents are working through the inventory..."):
-                    workflow = StockPilotWorkflow()
-                    st.session_state.workflow_result = workflow.run(inventory, budget)
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Workflow could not run: {exc}")
-                st.exception(exc)
-
-    with col_status:
-        if result:
+    else:
+        with st.container(border=True):
+            st.markdown("**Next step: run the agents**")
             st.caption(
-                f"Last run: **{workflow_status}** · "
-                f"Validation: **{validation.get('status', 'UNKNOWN')}** · "
-                f"Revisions: **{result.get('revision_attempts', 0)}**"
+                "The agents work out daily demand, days of cover, reorder points and a "
+                "budget-aware purchase plan. A separate Critic agent then checks the plan."
             )
-        else:
-            st.caption("No analysis run in this session yet.")
 
 
 # ─────────────────────────────────────────────────────────────
 # PAGE: INVENTORY EXPLORER
 # ─────────────────────────────────────────────────────────────
-elif page == "Inventory Explorer":
-    heading("Inventory Explorer", "Search, filter and export the current product dataset.")
+def inventory_explorer():
+    header("Inventory explorer", "Search, filter and export the current product dataset.")
 
-    search = st.text_input("⌕ Search products", placeholder="Search product name, ID or category...")
-    category_filter = "All categories"
-    if category_col:
-        options = ["All categories"] + sorted(inventory[category_col].dropna().astype(str).unique().tolist())
-        category_filter = st.selectbox("Category", options)
+    with st.container(horizontal=True, vertical_alignment="bottom"):
+        search = st.text_input("Search products", placeholder="Product name, SKU, category or supplier",
+                               icon=":material/search:")
+        category_filter = "All categories"
+        if category_col:
+            options = ["All categories"] + sorted(inventory[category_col].dropna().astype(str).unique().tolist())
+            category_filter = st.selectbox("Category", options)
 
     filtered = inventory.copy()
 
@@ -532,204 +361,204 @@ elif page == "Inventory Explorer":
         if searchable_cols:
             mask = pd.Series(False, index=filtered.index)
             for col in searchable_cols:
-                mask |= filtered[col].astype(str).str.contains(search, case=False, na=False)
+                mask |= filtered[col].astype(str).str.contains(search, case=False, na=False, regex=False)
             filtered = filtered[mask]
 
     if category_col and category_filter != "All categories":
         filtered = filtered[filtered[category_col].astype(str) == category_filter]
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Matching products", len(filtered))
-    m2.metric("Units shown", f"{numeric(filtered, stock_col).sum():,.0f}" if stock_col else "—")
-    m3.metric("Value shown", money((numeric(filtered, stock_col) * numeric(filtered, cost_col)).sum()) if stock_col and cost_col else "—")
+    with st.container(horizontal=True):
+        st.metric("Matching products", len(filtered), border=True)
+        st.metric("Units shown", f"{numeric(filtered, stock_col).sum():,.0f}" if stock_col else "—", border=True)
+        st.metric("Value shown", money((numeric(filtered, stock_col) * numeric(filtered, cost_col)).sum())
+                  if stock_col and cost_col else "—", border=True)
 
-    st.dataframe(
-        filtered,
-        use_container_width=True,
-        hide_index=True,
-        height=460,
-    )
+    st.dataframe(filtered, hide_index=True, height=460, alt="Filtered inventory table")
 
     st.download_button(
-        "⬇ Export filtered inventory",
-        data=filtered.to_csv(index=False).encode("utf-8"),
+        "Export filtered inventory",
+        data=csv_bytes(filtered),
         file_name="stockpilot_filtered_inventory.csv",
         mime="text/csv",
+        icon=":material/download:",
     )
 
+    st.divider()
+    heading("Calculated inventory signals", "Agent output, kept separate from the source data.")
     if not analysis_df.empty:
-        st.divider()
-        heading("Calculated inventory signals", "Agent output, kept separate from the source data.")
-        st.dataframe(analysis_df, use_container_width=True, hide_index=True)
+        st.dataframe(analysis_df, hide_index=True, alt="Agent-calculated inventory signals")
         st.download_button(
-            "⬇ Export analysis",
-            data=analysis_df.to_csv(index=False).encode("utf-8"),
+            "Export analysis",
+            data=csv_bytes(analysis_df),
             file_name="stockpilot_analysis.csv",
             mime="text/csv",
+            icon=":material/download:",
         )
     else:
-        st.info("Run the inventory agents from Command Center to calculate risk and demand signals.")
+        st.info("Run the agents to calculate risk and demand signals.", icon=":material/play_arrow:")
 
 
 # ─────────────────────────────────────────────────────────────
 # PAGE: REPLENISHMENT
 # ─────────────────────────────────────────────────────────────
-elif page == "Replenishment":
-    heading("Replenishment workspace", "Review proposed orders and the independent Critic validation.")
+def replenishment():
+    header("Replenishment", "Review proposed orders and the independent Critic validation.")
 
-    b1, b2, b3 = st.columns(3)
-    b1.metric("Planning budget", money(budget))
-    b2.metric("Proposed approved cost", money(approved_cost_value) if result else "—")
-    remaining = max(0.0, budget - approved_cost_value)
-    b3.metric("Budget remaining", money(remaining) if result else "—")
+    with st.container(horizontal=True):
+        st.metric("Planning budget", money(budget), border=True)
+        st.metric("Proposed approved cost", money(approved_cost_value) if result else "—", border=True)
+        st.metric("Budget remaining", money(max(0.0, budget - approved_cost_value)) if result else "—",
+                  border=True)
 
-    if result:
-        if workflow_status == "VALIDATED":
-            st.success("Workflow reports a validated plan. Review each line before acting.")
-        elif workflow_status == "REJECTED":
-            st.error("Workflow rejected the plan. Do not use it for purchasing.")
-        else:
-            st.warning(f"Workflow status: {workflow_status}")
+    if not result:
+        st.info("No purchase plan yet. Run the agents to generate one.", icon=":material/play_arrow:")
+        return
 
-        if not plan_df.empty:
-            st.dataframe(plan_df, use_container_width=True, hide_index=True)
-            st.download_button(
-                "⬇ Export purchase plan",
-                data=plan_df.to_csv(index=False).encode("utf-8"),
-                file_name="stockpilot_purchase_plan.csv",
-                mime="text/csv",
-            )
-        else:
-            st.info("The workflow returned no purchase-plan rows.")
-
-        st.divider()
-        heading("Independent validation", "Results reported by the Critic Agent.")
-
-        checks = validation.get("passed", [])
-        warnings = validation.get("warnings", [])
-        errors = validation.get("errors", [])
-
-        v1, v2, v3 = st.columns(3)
-        v1.metric("Checks passed", len(checks))
-        v2.metric("Warnings", len(warnings))
-        v3.metric("Errors", len(errors))
-
-        with st.expander("✓ Passed checks", expanded=True):
-            if checks:
-                for item in checks:
-                    st.markdown(f"- {item}")
-            else:
-                st.caption("No passed checks were reported.")
-
-        with st.expander("⚠ Warnings"):
-            if warnings:
-                for item in warnings:
-                    st.warning(item)
-            else:
-                st.caption("No warnings reported.")
-
-        with st.expander("✕ Validation errors"):
-            if errors:
-                for item in errors:
-                    st.error(item)
-            else:
-                st.caption("No validation errors reported.")
+    if workflow_status == "VALIDATED":
+        st.success("Review each line before you place any order.", title="Plan validated")
+    elif workflow_status == "REJECTED":
+        st.error("Do not use this plan for purchasing.", title="Plan rejected")
     else:
-        st.info("No purchase plan yet. Go to Command Center and run the agents to generate one.")
+        st.warning(f"Workflow status: {workflow_status}")
 
-        if st.button("▶ Generate replenishment plan", type="primary"):
-            try:
-                with st.spinner("Analyzing inventory and validating orders..."):
-                    st.session_state.workflow_result = StockPilotWorkflow().run(inventory, budget)
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Workflow failed: {exc}")
-                st.exception(exc)
+    if not plan_df.empty:
+        st.dataframe(
+            plan_df,
+            hide_index=True,
+            column_order=[c for c in ["priority_rank", "product_id", "product_name", "risk_level",
+                                      "suggested_quantity", "approved_quantity", "approved_cost",
+                                      "allocation_status", "unit_cost", "supplier_name"] if c in plan_df.columns],
+            column_config={
+                "priority_rank": st.column_config.NumberColumn("Priority", format="%d"),
+                "product_id": "SKU",
+                "product_name": "Product",
+                "risk_level": "Risk",
+                "suggested_quantity": st.column_config.NumberColumn("Suggested qty", format="%d"),
+                "approved_quantity": st.column_config.NumberColumn("Approved qty", format="%d"),
+                "approved_cost": st.column_config.NumberColumn("Approved cost (₹)", format="%.2f"),
+                "allocation_status": "Allocation",
+                "unit_cost": st.column_config.NumberColumn("Unit cost (₹)", format="%.2f"),
+                "supplier_name": "Supplier",
+            },
+            alt="Proposed purchase plan",
+        )
+        st.download_button(
+            "Export purchase plan",
+            data=csv_bytes(plan_df),
+            file_name="stockpilot_purchase_plan.csv",
+            mime="text/csv",
+            icon=":material/download:",
+        )
+    else:
+        st.info("The workflow returned no purchase-plan rows.")
+
+    st.divider()
+    heading("Independent validation", "Results reported by the Critic Agent.")
+
+    checks = validation.get("passed", [])
+    warnings = validation.get("warnings", [])
+    errors = validation.get("errors", [])
+
+    with st.container(horizontal=True):
+        st.metric("Checks passed", len(checks), border=True)
+        st.metric("Warnings", len(warnings), border=True)
+        st.metric("Errors", len(errors), border=True)
+
+    with st.expander("Passed checks", icon=":material/check_circle:", expanded=True):
+        if checks:
+            st.markdown("\n".join(f"- {item}" for item in checks))
+        else:
+            st.caption("No passed checks were reported.")
+
+    with st.expander("Warnings", icon=":material/warning:", expanded=bool(warnings)):
+        if warnings:
+            for item in warnings:
+                st.warning(item)
+        else:
+            st.caption("No warnings reported.")
+
+    with st.expander("Validation errors", icon=":material/error:", expanded=bool(errors)):
+        if errors:
+            for item in errors:
+                st.error(item)
+        else:
+            st.caption("No validation errors reported.")
 
 
 # ─────────────────────────────────────────────────────────────
 # PAGE: AGENT ACTIVITY
 # ─────────────────────────────────────────────────────────────
-elif page == "Agent Activity":
-    heading("Agent activity", "Inspect the execution trace produced by the orchestration workflow.")
+def agent_activity():
+    header("Agent activity", "The execution trace produced by the orchestration workflow.")
 
-    if result:
-        st.markdown(
-            f"""
-            <div class="info-card">
-              <div class="info-label">WORKFLOW STATE</div>
-              <div class="info-value" style="color:{status_color}">{workflow_status}</div>
-              <div class="info-note">Revision attempts: {result.get('revision_attempts', 0)} · Validation: {validation.get('status', 'UNKNOWN')}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown("")
-        events_df = pd.DataFrame(events)
-
-        if not events_df.empty:
-            if "status" in events_df.columns:
-                completed = int(events_df["status"].astype(str).str.upper().eq("COMPLETED").sum())
-                failed = int(events_df["status"].astype(str).str.upper().isin(["FAILED", "REJECTED", "FAIL"]).sum())
-            else:
-                completed, failed = 0, 0
-
-            e1, e2, e3 = st.columns(3)
-            e1.metric("Events logged", len(events_df))
-            e2.metric("Completed events", completed)
-            e3.metric("Failed / rejected events", failed)
-
-            st.dataframe(events_df, use_container_width=True, hide_index=True)
-
-            if "agent" in events_df.columns and "status" in events_df.columns:
-                counts = (
-                    events_df.groupby(["agent", "status"])
-                    .size().reset_index(name="Events")
-                )
-                fig = px.bar(
-                    counts,
-                    x="agent",
-                    y="Events",
-                    color="status",
-                    barmode="group",
-                    color_discrete_sequence=[GREEN, BLUE, AMBER, RED],
-                )
-                fig.update_layout(xaxis_title="", yaxis_title="Logged events")
-                st.plotly_chart(style_chart(fig, 330), use_container_width=True)
-
-            st.download_button(
-                "⬇ Download execution log",
-                data=events_df.to_csv(index=False).encode("utf-8"),
-                file_name="stockpilot_execution_log.csv",
-                mime="text/csv",
+    if not result:
+        st.info("Run the agents first. The orchestration trace will appear here.",
+                icon=":material/play_arrow:")
+        with st.container(border=True):
+            st.markdown("**Workflow design**")
+            st.markdown(
+                "1. **Planner Agent** sequences the tasks\n"
+                "2. **Inventory Analyst** analyzes demand and stock risk\n"
+                "3. **Replenishment Agent** proposes orders within budget\n"
+                "4. **Critic Agent** validates the plan independently\n"
+                "5. **Orchestrator** bounds retries and sets the final status"
             )
-        else:
-            st.info("No events were returned by the workflow.")
+            st.caption("Agent roles come from the project design. Run details appear after a run.")
+        return
+
+    events_df = pd.DataFrame(events)
+    if events_df.empty:
+        st.info("No events were returned by the workflow.")
+        return
+
+    if "status" in events_df.columns:
+        status_upper = events_df["status"].astype(str).str.upper()
+        completed = int(status_upper.isin(["COMPLETED", "PASS"]).sum())
+        failed = int(status_upper.isin(["FAILED", "REJECTED", "FAIL"]).sum())
     else:
-        st.info("Run the workflow first. The orchestration trace will appear here.")
+        completed, failed = 0, 0
 
-        st.markdown("""
-        <div class="info-card">
-          <div class="info-label">WORKFLOW DESIGN</div>
-          <div style="font-size:14px;line-height:2;color:#EDF4FF;">
-            01 &nbsp; Planner Agent — task sequencing<br>
-            02 &nbsp; Inventory Analyst — demand and stock-risk analysis<br>
-            03 &nbsp; Replenishment Agent — budget-aware order proposal<br>
-            04 &nbsp; Critic Agent — independent validation<br>
-            05 &nbsp; Orchestrator — bounded retries and final status
-          </div>
-          <div class="info-note">Agent roles are shown from the project design; actual execution details appear after a run.</div>
-        </div>
-        """, unsafe_allow_html=True)
+    with st.container(horizontal=True):
+        st.metric("Revision attempts", result.get("revision_attempts", 0), border=True)
+        st.metric("Events logged", len(events_df), border=True)
+        st.metric("Completed or passed", completed, border=True)
+        st.metric("Failed or rejected", failed, border=True)
+
+    st.dataframe(
+        events_df,
+        hide_index=True,
+        column_config={
+            "step": st.column_config.NumberColumn("Step", format="%d", width="small"),
+            "agent": "Agent",
+            "action": "Action",
+            "status": "Status",
+            "details": st.column_config.TextColumn("Details", width="large"),
+        },
+        alt="Agent execution log",
+    )
+
+    st.download_button(
+        "Download execution log",
+        data=csv_bytes(events_df),
+        file_name="stockpilot_execution_log.csv",
+        mime="text/csv",
+        icon=":material/download:",
+    )
 
 
 # ─────────────────────────────────────────────────────────────
-# FOOTER
+# NAVIGATION
 # ─────────────────────────────────────────────────────────────
-st.markdown("<br><hr>", unsafe_allow_html=True)
-footer_left, footer_right = st.columns([2, 1])
-with footer_left:
-    st.caption("STOCKPILOT AI  ·  AGENTIC RETAIL INVENTORY PLANNING")
-with footer_right:
-    st.caption("Academic proof of concept · Human review required")
+page = st.navigation(
+    [
+        st.Page(command_center, title="Command center", icon=":material/dashboard:", default=True),
+        st.Page(inventory_explorer, title="Inventory explorer", icon=":material/inventory:"),
+        st.Page(replenishment, title="Replenishment", icon=":material/local_shipping:"),
+        st.Page(agent_activity, title="Agent activity", icon=":material/account_tree:"),
+    ],
+    position="top",
+)
+page.run()
+
+st.divider()
+st.caption("StockPilot AI · Academic proof of concept · Proposals only. No orders are placed without human review.")

@@ -1,0 +1,58 @@
+# "Stockroom ledger" theme: shelf-label look, light and dark modes.
+# Risk colors: red = out of stock / critical, orange = high / medium, green = low.
+
+[theme]
+font = "Archivo:https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap"
+headingFont = "Archivo:https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&display=swap"
+codeFont = "'IBM Plex Mono':https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+baseFontSize = 15
+headingFontWeights = [700, 700, 600, 600, 600, 600]
+metricValueFontSize = "1.9rem"
+metricValueFontWeight = 600
+baseRadius = "small"
+buttonRadius = "small"
+showWidgetBorder = true
+showSidebarBorder = true
+linkUnderline = false
+paddingTop = "1.5rem"
+
+[theme.light]
+primaryColor = "#1F4FD1"
+backgroundColor = "#F7F8F6"
+secondaryBackgroundColor = "#ECEEEB"
+textColor = "#1C2430"
+borderColor = "#D3D7D2"
+linkColor = "#1F4FD1"
+redColor = "#B42318"
+orangeColor = "#B45309"
+greenColor = "#2F7D4F"
+blueColor = "#1F4FD1"
+grayColor = "#5C6470"
+dataframeHeaderBackgroundColor = "#ECEEEB"
+chartCategoricalColors = ["#1F4FD1", "#2F7D4F", "#B45309", "#B42318", "#5C6470", "#7A4FC9"]
+
+[theme.light.sidebar]
+backgroundColor = "#ECEEEB"
+secondaryBackgroundColor = "#F7F8F6"
+
+[theme.dark]
+primaryColor = "#3D63DD"
+backgroundColor = "#14181E"
+secondaryBackgroundColor = "#1C2129"
+textColor = "#E6E9EE"
+borderColor = "#2E3540"
+linkColor = "#8AA8FF"
+redColor = "#F0705F"
+orangeColor = "#E8954A"
+greenColor = "#5BBF86"
+blueColor = "#8AA8FF"
+grayColor = "#9AA3AF"
+dataframeHeaderBackgroundColor = "#1C2129"
+chartCategoricalColors = ["#8AA8FF", "#5BBF86", "#E8954A", "#F0705F", "#9AA3AF", "#B79BF0"]
+
+[theme.dark.sidebar]
+backgroundColor = "#1C2129"
+secondaryBackgroundColor = "#14181E"
+
+[client]
+toolbarMode = "minimal"
